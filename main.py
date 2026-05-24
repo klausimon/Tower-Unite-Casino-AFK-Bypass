@@ -7,30 +7,28 @@ import cv2
 import numpy as np
 
 # --- CONFIGURATION ---
+# Point this to your Tesseract installation path
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
-# Updated Coordinates based on your new images
-# Shifted Y down by 15 pixels so the bottom of the letters aren't cut off
-AFK_TEXT_REGION = (750, 365, 420, 40)
-
-# This is now a wide box covering the entire red rectangle area you drew
-AFK_KEY_AREA = (720, 400, 480, 110)
-
-# The error message box coordinates
-ERROR_TEXT_REGION = (800, 440, 320, 80)
+# Your perfectly measured 1920x1080 coordinates
+AFK_TEXT_REGION = (700, 320, 520, 100)  # The "ARE YOU STILL THERE?" box
+AFK_KEY_AREA = (649, 420, 537, 144)  # The wide red box where the keycap travels
+ERROR_TEXT_REGION = (800, 440, 320, 80)  # The "Wrong Button!" penalty text
 
 
 def check_for_afk_prompt():
+    """Looks for the main AFK check text in the upper box."""
     screenshot = pyautogui.screenshot(region=AFK_TEXT_REGION)
     gray = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2GRAY)
 
-    cv2.imwrite("debug_text_vision.png", gray)  # Keep saving for debugging
+    cv2.imwrite("debug_text_vision.png", gray)  # Keep for debugging
 
     text = pytesseract.image_to_string(gray).upper()
     return "STILL" in text or "THERE" in text
 
 
 def check_for_error():
+    """Looks for the red penalty text after a misclick."""
     screenshot = pyautogui.screenshot(region=ERROR_TEXT_REGION)
     gray = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2GRAY)
     text = pytesseract.image_to_string(gray).upper()
@@ -38,27 +36,38 @@ def check_for_error():
 
 
 def get_afk_key():
+    """Finds the white keycap, crops out the noise, and reads the letter."""
     screenshot = pyautogui.screenshot(region=AFK_KEY_AREA)
     img = np.array(screenshot)
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
 
-    # NEW THRESHOLD MATH:
-    # This turns the grey keycap white, and keeps the black letter (and dark background) black.
-    # Tesseract loves reading black text on a white background.
+    # Turn the grey keycap pure white, and the background pure black
     _, thresh = cv2.threshold(gray, 90, 255, cv2.THRESH_BINARY)
+    cv2.imwrite("debug_keycap_full_area.png", thresh)
 
-    cv2.imwrite("debug_keycap_vision.png", thresh)  # Check this file!
+    # Find all the white shapes in the black void
+    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    # --psm 11 tells Tesseract to look for scattered text anywhere in the wide image
-    config = '--psm 11'
-    raw_text = pytesseract.image_to_string(thresh, config=config).strip().lower()
+    for cnt in contours:
+        x, y, w, h = cv2.boundingRect(cnt)
 
-    # Because we are scanning a wider area, we might pick up random noise.
-    # We must filter the result to find exactly ONE letter.
-    # We loop through whatever Tesseract found and return the first valid alphabet letter.
-    for char in raw_text:
-        if char.isalpha() and char.islower():
-            return char
+        # We only care about shapes larger than 30x30 pixels (ignores the mouse cursor)
+        if w > 30 and h > 30:
+            # Crop the image strictly to the keycap box!
+            cropped_keycap = thresh[y:y + h, x:x + w]
+
+            # Save the cropped image so you can see exactly what the bot is reading
+            cv2.imwrite("debug_cropped_key.png", cropped_keycap)
+
+            # config explains:
+            # --psm 10 : Expect exactly ONE character.
+            # whitelist: Only allow lowercase alphabet letters (ignores hardhat pieces/symbols).
+            config = '--psm 10 -c tessedit_char_whitelist=abcdefghijklmnopqrstuvwxyz'
+            char = pytesseract.image_to_string(cropped_keycap, config=config).strip().lower()
+
+            # Final validation check
+            if len(char) == 1 and char.isalpha():
+                return char
 
     return None
 
@@ -66,33 +75,40 @@ def get_afk_key():
 # --- MAIN LOOP ---
 print("Starting in 5 seconds. Please tab into Tower Unite...")
 time.sleep(5)
-print("Bot running. Press CTRL+C to stop.")
+print("Bot running. Press CTRL+C in this console to stop.")
 
 try:
     while True:
+        # 1. Check if the AFK box is on screen
         if check_for_afk_prompt():
             print("\n*** AFK Check Detected! ***")
 
-            # Give the moving keycap a split second to settle
+            # Give the keycap a tiny fraction of a second to stop bouncing
             time.sleep(0.5)
+
+            # 2. Extract the letter
             key_to_press = get_afk_key()
 
             if key_to_press:
                 print(f"Pressing key: {key_to_press}")
                 pydirectinput.press(key_to_press)
-                time.sleep(1)
+                time.sleep(1)  # Let the game process the input
 
+                # 3. Verify if we hit the right key or got the penalty
                 if check_for_error():
                     print("Misclick detected! Waiting 3.5 seconds penalty...")
-                    time.sleep(3.5)
+                    time.sleep(3.5)  # Wait out the penalty
                 else:
                     print("Success! Resuming...")
                     time.sleep(1)
             else:
-                print("Could not find a valid letter in the red box area. Retrying...")
+                print("Could not isolate a valid letter. Retrying next loop...")
                 time.sleep(1)
         else:
+            # Normal slot machine operation
             pydirectinput.press('space')
+
+            # Randomized delay to look human
             delay = random.uniform(2.0, 3.0)
             print(f"Spun slot. Waiting {delay:.2f} seconds...")
             time.sleep(delay)
