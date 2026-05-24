@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="80f76a85-e554-4886-aa06-8d6e7e73e35e" name="Changes" comment="-added Anti-Aliasing logic to smooth out the jagged edges so Tesseract can easily read the letters using Word Mode">
+    <list default="true" id="80f76a85-e554-4886-aa06-8d6e7e73e35e" name="Changes" comment="fix(ocr): implement center-gravity filter to prevent corner-noise false positives">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
     </list>
@@ -129,7 +129,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1779630579223</updated>
-      <workItem from="1779630580301" duration="11803000" />
+      <workItem from="1779630580301" duration="13501000" />
     </task>
     <task id="LOCAL-00001" summary="Initial Commit">
       <option name="closed" value="true" />
@@ -171,7 +171,15 @@
       <option name="project" value="LOCAL" />
       <updated>1779648034962</updated>
     </task>
-    <option name="localTasksCounter" value="6" />
+    <task id="LOCAL-00006" summary="fix(ocr): implement center-gravity filter to prevent corner-noise false positives">
+      <option name="closed" value="true" />
+      <created>1779649458035</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1779649458035</updated>
+    </task>
+    <option name="localTasksCounter" value="7" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -193,10 +201,11 @@
     <MESSAGE value="-upgraded the key selector" />
     <MESSAGE value="-upgraded the key selector to almost perfection" />
     <MESSAGE value="-added Anti-Aliasing logic to smooth out the jagged edges so Tesseract can easily read the letters using Word Mode" />
-    <option name="LAST_COMMIT_MESSAGE" value="-added Anti-Aliasing logic to smooth out the jagged edges so Tesseract can easily read the letters using Word Mode" />
+    <MESSAGE value="fix(ocr): implement center-gravity filter to prevent corner-noise false positives" />
+    <option name="LAST_COMMIT_MESSAGE" value="fix(ocr): implement center-gravity filter to prevent corner-noise false positives" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/OCR_Anti_afk$main.coverage" NAME="main Coverage Results" MODIFIED="1779648159038" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/OCR_Anti_afk$main.coverage" NAME="main Coverage Results" MODIFIED="1779650566779" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/OCR_Anti_afk$mouse_tracker.coverage" NAME="mouse_tracker Coverage Results" MODIFIED="1779638444066" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>

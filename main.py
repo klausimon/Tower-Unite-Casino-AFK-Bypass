@@ -37,7 +37,7 @@ def check_for_error():
 
 
 def get_afk_key():
-    """Finds the keycap, isolates the letter using a Center-Gravity Filter, smooths, and reads it."""
+    """Finds the keycap, isolates the letter using Center-Gravity, smooths, and reads it."""
     screenshot = pyautogui.screenshot(region=AFK_KEY_AREA)
     img = np.array(screenshot)
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
@@ -50,8 +50,15 @@ def get_afk_key():
     for cnt in contours:
         x, y, w, h = cv2.boundingRect(cnt)
 
-        # Filter out mouse cursor
-        if w > 30 and h > 30:
+        # --- THE SHAPE PROFILE FILTER ---
+        # 1. Calculate Aspect Ratio (Width divided by Height). Squares are ~1.0.
+        aspect_ratio = float(w) / float(h)
+
+        # 2. Size Limits: Must be bigger than 30px (ignores mouse cursor/dust)
+        #                 Must be smaller than 150px (ignores giant banners/signs)
+        # 3. Shape Limit: Aspect ratio must be between 0.8 and 2.5 (ignores long horizontal bars)
+        if (30 < w < 150) and (30 < h < 150) and (0.8 < aspect_ratio < 2.5):
+
             cropped_keycap = thresh[y:y + h, x:x + w]
 
             # --- THE 4-WAY CHOP ---
@@ -169,7 +176,7 @@ try:
             pydirectinput.press('space')
 
             # --- THE SMART SLEEP ---
-            delay = random.uniform(3.5, 4.0)
+            delay = random.uniform(2.5, 3.0)
             print(f"Spun slot. Waiting {delay:.2f} seconds...")
 
             wait_start_time = time.time()
