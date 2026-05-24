@@ -7,27 +7,29 @@ import cv2
 import numpy as np
 
 # --- CONFIGURATION ---
+# IMPORTANT: Ensure this path points to where you installed Tesseract-OCR
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 # Your exact custom 1920x1080 measurements
-AFK_TEXT_REGION = (700, 320, 520, 100)
-AFK_KEY_AREA = (649, 420, 537, 144)
-ERROR_TEXT_REGION = (800, 440, 320, 80)
+AFK_TEXT_REGION = (700, 320, 520, 100)  # The "ARE YOU STILL THERE?" box
+AFK_KEY_AREA = (649, 420, 537, 144)  # The wide area where the keycap travels
+ERROR_TEXT_REGION = (800, 440, 320, 80)  # The "Wrong Button!" penalty text
 
 
 def check_for_afk_prompt():
+    """Looks for the main AFK check text, applying thresholding to delete the translucent background."""
     screenshot = pyautogui.screenshot(region=AFK_TEXT_REGION)
     gray = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2GRAY)
 
+    # Turn the pure white text black, and wipe out the translucent background
     _, thresh = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY_INV)
-    # Disabled saving the text debug image every 0.25 seconds to save your hard drive from spam!
-    # cv2.imwrite("debug_text_vision.png", thresh)
 
     text = pytesseract.image_to_string(thresh).upper()
     return "STILL" in text or "THERE" in text
 
 
 def check_for_error():
+    """Looks for the red penalty text after a misclick."""
     screenshot = pyautogui.screenshot(region=ERROR_TEXT_REGION)
     gray = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2GRAY)
     text = pytesseract.image_to_string(gray).upper()
@@ -35,10 +37,12 @@ def check_for_error():
 
 
 def get_afk_key():
+    """Finds the keycap, isolates the letter using a Center-Gravity Filter, smooths, and reads it."""
     screenshot = pyautogui.screenshot(region=AFK_KEY_AREA)
     img = np.array(screenshot)
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
 
+    # Turn keycap white, background black
     _, thresh = cv2.threshold(gray, 90, 255, cv2.THRESH_BINARY)
 
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -46,39 +50,73 @@ def get_afk_key():
     for cnt in contours:
         x, y, w, h = cv2.boundingRect(cnt)
 
+        # Filter out mouse cursor
         if w > 30 and h > 30:
             cropped_keycap = thresh[y:y + h, x:x + w]
 
-            startY, startX = int(h * 0.40), int(w * 0.25)
-            endX = int(w * 0.85)
-            clean_keycap = cropped_keycap[startY:h, startX:endX]
+            # --- THE 4-WAY CHOP ---
+            # Chop 38% top (hardhat), 10% bottom (shadow)
+            # Chop 25% left (heavy shadow), 10% right (margin)
+            startY, endY = int(h * 0.38), int(h * 0.90)
+            startX, endX = int(w * 0.25), int(w * 0.90)
+            clean_keycap = cropped_keycap[startY:endY, startX:endX]
 
             inv_cap = cv2.bitwise_not(clean_keycap)
             inner_contours, _ = cv2.findContours(inv_cap, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+            # Find the true center of our chopped image
             ch, cw = inv_cap.shape
+            center_x, center_y = cw // 2, ch // 2
+
+            all_x, all_y, all_xw, all_yh = [], [], [], []
 
             for icnt in inner_contours:
                 ix, iy, iw, ih = cv2.boundingRect(icnt)
 
-                if ix > 2 and iy > 2 and (ix + iw) < (cw - 2) and (iy + ih) < (ch - 2):
-                    if iw > 5 and ih > 5:
+                # Ignore microscopic dust
+                if iw > 4 and ih > 6:
+                    # Find the center of this specific shape
+                    shape_cx = ix + (iw // 2)
+                    shape_cy = iy + (ih // 2)
 
-                        letter_crop = clean_keycap[iy:iy + ih, ix:ix + iw]
+                    # --- THE CENTER GRAVITY FILTER ---
+                    # Only accept this shape if its center is reasonably close to the middle.
+                    if abs(shape_cx - center_x) < (cw * 0.40) and abs(shape_cy - center_y) < (ch * 0.40):
+                        all_x.append(ix)
+                        all_y.append(iy)
+                        all_xw.append(ix + iw)
+                        all_yh.append(iy + ih)
 
-                        final_img = cv2.resize(letter_crop, None, fx=5, fy=5, interpolation=cv2.INTER_CUBIC)
-                        final_img = cv2.GaussianBlur(final_img, (5, 5), 0)
-                        _, final_img = cv2.threshold(final_img, 150, 255, cv2.THRESH_BINARY)
-                        final_img = cv2.copyMakeBorder(final_img, 50, 50, 50, 50, cv2.BORDER_CONSTANT,
-                                                       value=[255, 255, 255])
+            # If we successfully found valid, centered letter parts
+            if all_x:
+                min_x, min_y = min(all_x), min(all_y)
+                max_xw, max_yh = max(all_xw), max(all_yh)
 
-                        cv2.imwrite("debug_cropped_key.png", final_img)
+                letter_crop = clean_keycap[min_y:max_yh, min_x:max_xw]
 
-                        config = '--psm 8 -c tessedit_char_whitelist=abcdefghijklmnopqrstuvwxyz'
-                        char = pytesseract.image_to_string(final_img, config=config).strip().lower()
-                        clean_char = ''.join(filter(str.isalpha, char))
+                # --- ANTI-ALIASING & SMOOTHING ---
+                # Upscale by 500% to create a massive canvas
+                final_img = cv2.resize(letter_crop, None, fx=5, fy=5, interpolation=cv2.INTER_CUBIC)
 
-                        if len(clean_char) == 1:
-                            return clean_char
+                # Gaussian Blur to melt the jagged 8-bit edges together
+                final_img = cv2.GaussianBlur(final_img, (5, 5), 0)
+
+                # Re-threshold to snap the blurry edges back to crisp font lines
+                _, final_img = cv2.threshold(final_img, 150, 255, cv2.THRESH_BINARY)
+
+                # Add a massive 50px pure white border so Tesseract has breathing room
+                final_img = cv2.copyMakeBorder(final_img, 50, 50, 50, 50, cv2.BORDER_CONSTANT, value=[255, 255, 255])
+
+                # Overwrite this file so you can always check what the bot is reading
+                cv2.imwrite("debug_cropped_key.png", final_img)
+
+                # PSM 8 (Single Word) handles these massive, smoothed images best
+                config = '--psm 8 -c tessedit_char_whitelist=abcdefghijklmnopqrstuvwxyz'
+                char = pytesseract.image_to_string(final_img, config=config).strip().lower()
+                clean_char = ''.join(filter(str.isalpha, char))
+
+                if len(clean_char) == 1:
+                    return clean_char
 
     return None
 
@@ -93,6 +131,7 @@ failsafe_counter = 0
 
 try:
     while True:
+        # If we see the prompt OR the spacebar lock is active, enter solving mode
         if check_for_afk_prompt() or afk_lock:
 
             if not afk_lock:
@@ -119,6 +158,7 @@ try:
                 print("Could not isolate a valid letter. Retrying... (Spacebar is locked)")
                 failsafe_counter += 1
 
+                # If it gets stuck reading a completely broken frame for 10 seconds, reset it.
                 if failsafe_counter >= 10:
                     print("Failsafe Triggered: Unlocking spacebar to prevent freezing.")
                     afk_lock = False
@@ -134,15 +174,15 @@ try:
 
             wait_start_time = time.time()
 
-            # Keep looping until the total delay time has passed
+            # Keep looping until the total randomized delay time has passed
             while (time.time() - wait_start_time) < delay:
-                # Quickly peek to see if the AFK check appeared during the wait
+                # Rapid-fire peek to see if the AFK check appeared mid-spin
                 if check_for_afk_prompt():
                     print("\n*** Prompt detected mid-spin! Interrupting wait... ***")
                     afk_lock = True
                     break  # Instantly break out of this waiting loop and solve the check
 
-                # Sleep in tiny 0.25 second chunks instead of one massive block
+                # Sleep in tiny chunks to keep CPU usage low while remaining highly responsive
                 time.sleep(0.25)
 
 except KeyboardInterrupt:
