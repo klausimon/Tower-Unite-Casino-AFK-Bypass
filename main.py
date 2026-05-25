@@ -41,9 +41,8 @@ def get_afk_key():
     screenshot = pyautogui.screenshot(region=AFK_KEY_AREA)
     img = np.array(screenshot)
 
-    # --- NEW: RAW UNEDITED DEBUG IMAGE ---
+    # --- RAW UNEDITED DEBUG IMAGE ---
     # Saves the exact, full-color, uncropped box the bot is looking at.
-    # (cv2 needs RGB converted to BGR to save colors correctly)
     cv2.imwrite("debug_raw_keycap_area.png", cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
 
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
@@ -119,8 +118,8 @@ def get_afk_key():
 
                 cv2.imwrite("debug_cropped_key.png", final_img)
 
-                # PSM 10 (Single Character), allowing capital letters!
-                config = '--psm 10 -c tessedit_char_whitelist=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
+                # PSM 8 (Single Word Mode) with capital letters enabled prevents thick letters from failing
+                config = '--psm 8 -c tessedit_char_whitelist=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
                 char = pytesseract.image_to_string(final_img, config=config).strip().lower()
                 clean_char = ''.join(filter(str.isalpha, char))
 
