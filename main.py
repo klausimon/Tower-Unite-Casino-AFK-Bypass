@@ -37,13 +37,20 @@ def check_for_error():
 
 
 def get_afk_key():
-    """Finds the keycap, isolates the letter using Center-Gravity, smooths, and reads it."""
+    """Finds the keycap, isolates the letter, filters out giant background textures, smooths, and reads it."""
     screenshot = pyautogui.screenshot(region=AFK_KEY_AREA)
     img = np.array(screenshot)
+
+    # --- NEW: RAW UNEDITED DEBUG IMAGE ---
+    # Saves the exact, full-color, uncropped box the bot is looking at.
+    # (cv2 needs RGB converted to BGR to save colors correctly)
+    cv2.imwrite("debug_raw_keycap_area.png", cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
+
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
 
-    # Turn keycap white, background black
+    # Turn keycap white, background black. Also save this full area for debugging.
     _, thresh = cv2.threshold(gray, 90, 255, cv2.THRESH_BINARY)
+    cv2.imwrite("debug_keycap_full_area_thresh.png", thresh)
 
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -51,19 +58,15 @@ def get_afk_key():
         x, y, w, h = cv2.boundingRect(cnt)
 
         # --- THE SHAPE PROFILE FILTER ---
-        # 1. Calculate Aspect Ratio (Width divided by Height). Squares are ~1.0.
         aspect_ratio = float(w) / float(h)
 
-        # 2. Size Limits: Must be bigger than 30px (ignores mouse cursor/dust)
-        #                 Must be smaller than 150px (ignores giant banners/signs)
-        # 3. Shape Limit: Aspect ratio must be between 0.8 and 2.5 (ignores long horizontal bars)
+        # 1. Size Limits: Must be bigger than 30px (ignores dust), smaller than 150px (ignores banners)
+        # 2. Shape Limit: Aspect ratio must be between 0.8 and 2.5 (ignores long horizontal bars)
         if (30 < w < 150) and (30 < h < 150) and (0.8 < aspect_ratio < 2.5):
 
             cropped_keycap = thresh[y:y + h, x:x + w]
 
             # --- THE 4-WAY CHOP ---
-            # Chop 38% top (hardhat), 10% bottom (shadow)
-            # Chop 25% left (heavy shadow), 10% right (margin)
             startY, endY = int(h * 0.38), int(h * 0.90)
             startX, endX = int(w * 0.25), int(w * 0.90)
             clean_keycap = cropped_keycap[startY:endY, startX:endX]
@@ -71,59 +74,58 @@ def get_afk_key():
             inv_cap = cv2.bitwise_not(clean_keycap)
             inner_contours, _ = cv2.findContours(inv_cap, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-            # Find the true center of our chopped image
             ch, cw = inv_cap.shape
             center_x, center_y = cw // 2, ch // 2
 
             all_x, all_y, all_xw, all_yh = [], [], [], []
+            valid_parts_count = 0
 
             for icnt in inner_contours:
                 ix, iy, iw, ih = cv2.boundingRect(icnt)
 
                 # Ignore microscopic dust
                 if iw > 4 and ih > 6:
-                    # Find the center of this specific shape
+
+                    # --- THE PROPORTIONAL SIZE FILTER ---
+                    # A real letter never fills the entire keycap. It has margins.
+                    # If a shape is taller or wider than 75% of the box, it is a casino wall!
+                    if iw > (cw * 0.75) or ih > (ch * 0.75):
+                        return None  # Instantly reject this entire image and try again
+
                     shape_cx = ix + (iw // 2)
                     shape_cy = iy + (ih // 2)
 
                     # --- THE CENTER GRAVITY FILTER ---
-                    # Only accept this shape if its center is reasonably close to the middle.
                     if abs(shape_cx - center_x) < (cw * 0.40) and abs(shape_cy - center_y) < (ch * 0.40):
                         all_x.append(ix)
                         all_y.append(iy)
                         all_xw.append(ix + iw)
                         all_yh.append(iy + ih)
+                        valid_parts_count += 1
 
-            # If we successfully found valid, centered letter parts
-            if all_x:
+                        # --- THE COMPLEXITY FILTER ---
+            # A valid letter is 1 or 2 pieces. If there are 5+ pieces, it is a wall/texture.
+            if all_x and valid_parts_count <= 4:
                 min_x, min_y = min(all_x), min(all_y)
                 max_xw, max_yh = max(all_xw), max(all_yh)
 
                 letter_crop = clean_keycap[min_y:max_yh, min_x:max_xw]
 
-                # --- ANTI-ALIASING & SMOOTHING ---
-                # Upscale by 500% to create a massive canvas
+                # --- HEAVY ANTI-ALIASING & SMOOTHING ---
                 final_img = cv2.resize(letter_crop, None, fx=5, fy=5, interpolation=cv2.INTER_CUBIC)
-
-                # Gaussian Blur to melt the jagged 8-bit edges together
-                final_img = cv2.GaussianBlur(final_img, (5, 5), 0)
-
-                # Re-threshold to snap the blurry edges back to crisp font lines
-                _, final_img = cv2.threshold(final_img, 150, 255, cv2.THRESH_BINARY)
-
-                # Add a massive 50px pure white border so Tesseract has breathing room
+                final_img = cv2.GaussianBlur(final_img, (15, 15), 0)
+                _, final_img = cv2.threshold(final_img, 128, 255, cv2.THRESH_BINARY)
                 final_img = cv2.copyMakeBorder(final_img, 50, 50, 50, 50, cv2.BORDER_CONSTANT, value=[255, 255, 255])
 
-                # Overwrite this file so you can always check what the bot is reading
                 cv2.imwrite("debug_cropped_key.png", final_img)
 
-                # PSM 8 (Single Word) handles these massive, smoothed images best
-                config = '--psm 8 -c tessedit_char_whitelist=abcdefghijklmnopqrstuvwxyz'
+                # PSM 10 (Single Character), allowing capital letters!
+                config = '--psm 10 -c tessedit_char_whitelist=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
                 char = pytesseract.image_to_string(final_img, config=config).strip().lower()
                 clean_char = ''.join(filter(str.isalpha, char))
 
-                if len(clean_char) == 1:
-                    return clean_char
+                if len(clean_char) > 0:
+                    return clean_char[0]
 
     return None
 
