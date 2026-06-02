@@ -6,7 +6,6 @@
   <component name="ChangeListManager">
     <list default="true" id="80f76a85-e554-4886-aa06-8d6e7e73e35e" name="Changes" comment="fix(ocr): switch to PSM 8 and expand whitelist to prevent thick-character rejection">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -131,6 +130,7 @@
       <updated>1779630579223</updated>
       <workItem from="1779630580301" duration="20277000" />
       <workItem from="1779731221577" duration="5926000" />
+      <workItem from="1779799535973" duration="2084000" />
     </task>
     <task id="LOCAL-00001" summary="Initial Commit">
       <option name="closed" value="true" />
@@ -241,7 +241,7 @@
     <option name="LAST_COMMIT_MESSAGE" value="fix(ocr): switch to PSM 8 and expand whitelist to prevent thick-character rejection" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/OCR_Anti_afk$main.coverage" NAME="main Coverage Results" MODIFIED="1779780485071" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/OCR_Anti_afk$main.coverage" NAME="main Coverage Results" MODIFIED="1779814981419" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/OCR_Anti_afk$mouse_tracker.coverage" NAME="mouse_tracker Coverage Results" MODIFIED="1779638444066" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>
