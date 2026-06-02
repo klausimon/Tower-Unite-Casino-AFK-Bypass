@@ -1,4 +1,4 @@
-# 🎰 Tower Unite Automata: Advanced OCR & Vision Pipeline
+# Tower Unite Automata: Advanced OCR & Vision Pipeline
 
 ![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)
 ![OpenCV](https://img.shields.io/badge/OpenCV-4.0+-green.svg)
@@ -14,7 +14,7 @@ Unlike basic pixel-search macros, this project utilizes a multi-layered image pr
 
 ---
 
-## Core Features & Tech Stack
+## 🔬 Core Features & Tech Stack
 
 This isn't your standard `pyautogui.locateOnScreen()` script. The game throws dynamic 3D objects, spinning backgrounds, and complex lighting at the player. To beat this, the script runs a custom OpenCV/Tesseract pipeline:
 
@@ -22,7 +22,7 @@ This isn't your standard `pyautogui.locateOnScreen()` script. The game throws dy
 * **Algorithmic 4-Way Guillotine Crop:** Automatically calculates bounding boxes around isolated shapes and mathematically slices off the top 38% and left 25% of the object to instantly delete 3D hardhat occlusion and isometric drop-shadows.
 * **Center-Gravity Matrix:** An advanced noise-rejection filter. If the bounding box accidentally catches corner debris (shadows or UI fragments) during a fast animation frame, the center-gravity filter calculates the distance of the debris from the absolute center and rejects it instantly.
 * **Shape Profile & Complexity Thresholding:** To prevent the OCR from trying to read giant casino banners or complex background walls, the pipeline calculates the Aspect Ratio, Pixel Density, and Internal Contour Count of every shape. Complex background geometry is instantly thrown out.
-* **Heavy Anti-Aliasing & Upscaling Pipeline:** Tesseract OCR is designed for high-resolution book fonts, not pixelated game textures. This script upscales captured shapes by **500% (Cubic Interpolation)**, applies a heavy **(15, 15) Gaussian Blur** to melt 8-bit jagged edges, and snaps them back to crisp vector-style lines using binary re-thresholding before feeding them to the OCR engine.
+* **Heavy Anti-Aliasing & Upscaling Pipeline:** Tesseract OCR is designed for high-resolution book fonts, not pixelated game textures. This script upscales captured shapes by **500% (Cubic Interpolation)**, applies a heavy **(15, 15) Gaussian Blur** to melt 8-bit jagged edges, and snaps them back to crisp vector-style lines using binary re-thresholding before feeding them to the OCR engine (utilizing PSM 8 for robust character recognition).
 
 ---
 
@@ -39,7 +39,7 @@ This isn't your standard `pyautogui.locateOnScreen()` script. The game throws dy
 
 ---
 
-## 🖥️ Resolution Configuration (READ CAREFULLY)
+## 📐 Resolution Configuration (READ CAREFULLY)
 
 **Out of the box, this script is hardcoded specifically for a `1920x1080` monitor resolution with 100% Windows UI Scaling.**
 
@@ -65,7 +65,7 @@ ERROR_TEXT_REGION = (800, 440, 320, 80) # The zone where the red "Wrong Button" 
 
 ---
 
-## Usage
+## 💻 Usage Instructions
 
 1. Open Tower Unite and sit at a slot machine.
 2. Open your terminal and run the script:
@@ -78,9 +78,18 @@ ERROR_TEXT_REGION = (800, 440, 320, 80) # The zone where the red "Wrong Button" 
 
 ---
 
+## 📌 Known Limitations (Overnight Usage)
+
+This script is highly resilient and generally considered **stable for overnight use**. However, please be aware of the following game-side event:
+
+* **Server Resets:** Very rarely, the Tower Unite servers will undergo a reset or cycle. If this happens while the script is running unattended, your character will be disconnected from the casino and loaded into the default Plaza spawn point in a new server. 
+* Because the script operates at the OS level, it will not recognize that the game environment has changed. It will continue running its standard loop (pressing spacebar and scanning for the AFK prompt), which will simply result in your character jumping in place at the spawn point until you manually stop the script. This is entirely harmless, but it is an unavoidable game-side limitation.
+
+---
+
 ## 🛠️ Debugging
 
 If the bot makes a mistake, check the root folder for the following output files generated in real-time:
-* `debug_raw_keycap_area.png` - The raw capture of your coordinate zone.
+* `debug_raw_keycap_area.png` - The raw, full-color capture of your coordinate zone (useful for checking lighting/UI shifts).
 * `debug_text_vision.png` - The thresholded image of the text prompt.
 * `debug_cropped_key.png` - The final, upscaled, blurred, and thresholded character that is fed directly to the Tesseract engine.
