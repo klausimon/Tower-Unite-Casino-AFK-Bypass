@@ -1,4 +1,4 @@
-# Tower Unite Automata: Advanced OCR & Vision Pipeline
+# Tower Unite OCR: Advanced OCR & Vision Pipeline
 
 ![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)
 ![OpenCV](https://img.shields.io/badge/OpenCV-4.0+-green.svg)
